@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calculadora de Baja Médica</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Marca de agua de fondo con el logo */
+    body {
+      background-color: #f8fafc;
+      background-image: linear-gradient(rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.92)), 
+                        url('https://upload.wikimedia.org/wikipedia/commons/a/a9/Logo_CGT_Espa%C3%B1a.svg');
+      background-repeat: no-repeat;
+      background-position: center center;
+      background-size: 350px auto;
+      background-attachment: fixed;
+    }
+  </style>
+</head>
+<body class="min-h-screen text-gray-800 flex flex-col justify-between p-4 sm:p-6">
+
+  <!-- Contenedor Principal -->
+  <main class="max-w-lg mx-auto w-full bg-white/90 backdrop-blur-md rounded-2xl shadow-xl border border-gray-100 p-5 sm:p-8 my-auto">
+    
+    <!-- Encabezado -->
+    <header class="text-center mb-6">
+      <h1 class="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">Calculadora de Baja Médica</h1>
+      <p class="text-xs sm:text-sm text-gray-500 mt-1">Estimación de retribución por Incapacidad Temporal</p>
+    </header>
+
+    <!-- Formulario -->
+    <form id="calcForm" class="space-y-4">
+      
+      <!-- Base de Cotización -->
+      <div>
+        <label for="base" class="block text-sm font-semibold text-gray-700 mb-1">Base de Cotización por Contingencias Comunes (€)</label>
+        <input type="number" id="base" step="0.01" placeholder="Ej: 1450.50" required
+               class="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all text-gray-900">
+        <span class="text-xs text-gray-400 mt-1 block">Aparece en la parte inferior de tu nómina del mes anterior.</span>
+      </div>
+
+      <!-- Días de baja -->
+      <div>
+        <label for="dias" class="block text-sm font-semibold text-gray-700 mb-1">Duración de la Baja (Días)</label>
+        <input type="number" id="dias" min="1" max="365" placeholder="Ej: 7" required
+               class="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all text-gray-900">
+      </div>
+
+      <!-- Número de baja en el año -->
+      <div>
+        <label for="numeroBaja" class="block text-sm font-semibold text-gray-700 mb-1">¿Qué número de baja es este año?</label>
+        <select id="numeroBaja" class="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all text-gray-900 bg-white">
+          <option value="1">1.ª o 2.ª baja del año (Días 1-3 cubiertos al 100%)</option>
+          <option value="3">3.ª baja o posterior (Días 1-3 sin cobrar)</option>
+        </select>
+      </div>
+
+      <!-- Tipo de Contingencia -->
+      <div>
+        <label for="tipo" class="block text-sm font-semibold text-gray-700 mb-1">Tipo de Baja</label>
+        <select id="tipo" class="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all text-gray-900 bg-white">
+          <option value="comun">Enfermedad Común / Accidente No Laboral</option>
+          <option value="profesional">Accidente de Trabajo / Enfermedad Profesional</option>
+        </select>
+      </div>
+
+      <!-- Botón Calcular -->
+      <button type="submit" 
+              class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-red-500/30 hover:shadow-red-500/50 transition-all text-base mt-2">
+        Calcular Cobro
+      </button>
+    </form>
+
+    <!-- Resultados -->
+    <div id="resultado" class="hidden mt-6 pt-6 border-t border-gray-200">
+      <h2 class="text-lg font-bold text-gray-900 mb-3">Resumen del Cálculo</h2>
+      
+      <div class="grid grid-cols-2 gap-3 mb-4">
+        <div class="bg-gray-50 p-3 rounded-xl border border-gray-100">
+          <span class="block text-xs text-gray-500">Base Reg. Diaria</span>
+          <span id="resBaseDiaria" class="text-base font-bold text-gray-800">0.00 €</span>
+        </div>
+        <div class="bg-red-50 p-3 rounded-xl border border-red-100">
+          <span class="block text-xs text-red-600 font-medium">Total Est. Bruto</span>
+          <span id="resTotal" class="text-lg font-extrabold text-red-700">0.00 €</span>
+        </div>
+      </div>
+
+      <!-- Desglose tramo a tramo -->
+      <div class="bg-gray-50 rounded-xl p-3 border border-gray-100 text-xs sm:text-sm space-y-1.5" id="desgloseTramos">
+      </div>
+    </div>
+  </main>
+
+  <!-- Pie de página -->
+  <footer class="text-center text-xs text-gray-500 mt-6">
+    <p>Herramienta de cálculo orientativo basada en la normativa de la Seguridad Social y complementos de empresa.</p>
+  </footer>
+
+  <!-- Script Lógica -->
+  <script>
+    document.getElementById('calcForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      const base = parseFloat(document.getElementById('base').value);
+      const dias = parseInt(document.getElementById('dias').value);
+      const numeroBaja = parseInt(document.getElementById('numeroBaja').value);
+      const tipo = document.getElementById('tipo').value;
+
+      const baseDiaria = base / 30;
+      let total = 0;
+      let desgloseHTML = '';
+
+      if (tipo === 'profesional') {
+        // Contingencia profesional: 75% desde el día 1 (o día 2 si el día 1 se cobra al 100% como trabajado)
+        total = baseDiaria * 0.75 * dias;
+        desgloseHTML += `<div class="flex justify-between"><span>Días 1 al ${dias} (75% Mutua):</span> <span class="font-semibold">${total.toFixed(2)} €</span></div>`;
+      } else {
+        // Contingencia común
+        let tramo1 = 0, tramo2 = 0, tramo3 = 0;
+        let diasT1 = Math.min(dias, 3);
+        let diasT2 = dias > 3 ? Math.min(dias - 3, 17) : 0; // Días del 4 al 20
+        let diasT3 = dias > 20 ? dias - 20 : 0;             // Día 21 en adelante
+
+        // Tramo 1 (Días 1 al 3)
+        if (diasT1 > 0) {
+          if (numeroBaja <= 2) {
+            tramo1 = baseDiaria * 1.0 * diasT1; // Cubierto al 100% por la empresa
+            desgloseHTML += `<div class="flex justify-between"><span>Días 1 al ${diasT1} (100% Empresa - ${numeroBaja}ª baja):</span> <span class="font-semibold">${tramo1.toFixed(2)} €</span></div>`;
+          } else {
+            tramo1 = 0; // 3ª baja en adelante no se cobra
+            desgloseHTML += `<div class="flex justify-between text-gray-400"><span>Días 1 al ${diasT1} (0% - 3ª baja o posterior):</span> <span class="font-semibold">0.00 €</span></div>`;
+          }
+        }
+
+        // Tramo 2 (Días 4 al 20 - 60%)
+        if (diasT2 > 0) {
+          tramo2 = baseDiaria * 0.60 * diasT2;
+          const finT2 = 3 + diasT2;
+          desgloseHTML += `<div class="flex justify-between"><span>Días 4 al ${finT2} (60%):</span> <span class="font-semibold">${tramo2.toFixed(2)} €</span></div>`;
+        }
+
+        // Tramo 3 (Día 21 en adelante - 75%)
+        if (diasT3 > 0) {
+          tramo3 = baseDiaria * 0.75 * diasT3;
+          desgloseHTML += `<div class="flex justify-between"><span>Días 21 al ${dias} (75%):</span> <span class="font-semibold">${tramo3.toFixed(2)} €</span></div>`;
+        }
+
+        total = tramo1 + tramo2 + tramo3;
+      }
+
+      // Renderizar resultados
+      document.getElementById('resBaseDiaria').textContent = `${baseDiaria.toFixed(2)} €`;
+      document.getElementById('resTotal').textContent = `${total.toFixed(2)} €`;
+      document.getElementById('desgloseTramos').innerHTML = desgloseHTML;
+      document.getElementById('resultado').classList.remove('hidden');
+    });
+  </script>
+</body>
+</html>
